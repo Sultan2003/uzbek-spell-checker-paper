@@ -1,0 +1,10 @@
+# Large corpora
+*.xz
+uz.txt
+
+# Raw datasets
+dataset/raw/*.txt
+dataset/raw/*.csv
+
+# Generated datasets
+dataset/generated_errors/*.csv
