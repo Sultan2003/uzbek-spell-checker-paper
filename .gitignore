@@ -12,6 +12,7 @@ dataset/raw/*
 # Processed/generated large data artifacts: keep placeholders only
 dataset/processed/*.csv
 dataset/processed/*.json
+!dataset/processed/filtering_report.json
 dataset/generated_errors/*.csv
 
 # Models and checkpoints
