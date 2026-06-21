@@ -45,7 +45,7 @@ Recommended source categories:
 - Educational materials, textbooks, and open learning resources for standardized spelling.
 - Government or public-service documents for administrative and formal language.
 - Public-domain or openly licensed literary texts for longer sentence structure.
-- Uzbek Wikipedia and other openly licensed encyclopedic content for general knowledge domains.
+- The local heterogeneous Uzbek web corpus at `dataset/raw/uz.txt`, supplemented only when needed by openly licensed sources for coverage analysis.
 - User-facing public text such as FAQs, help pages, or community announcements when licensing permits reuse.
 
 For publication, every source category should be recorded with license information, access date, collection method, and any exclusion criteria.

@@ -1,10 +1,31 @@
-# Large corpora
-*.xz
+# Large local corpora and compressed corpora
 uz.txt
+uz.txt.xz
+*.xz
+*.zst
+*.gz
 
-# Raw datasets
-dataset/raw/*.txt
-dataset/raw/*.csv
+# Raw datasets: keep placeholders only
+dataset/raw/*
+!dataset/raw/.gitkeep
 
-# Generated datasets
+# Processed/generated large data artifacts: keep placeholders only
+dataset/processed/*.csv
+dataset/processed/*.json
 dataset/generated_errors/*.csv
+
+# Models and checkpoints
+models/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
