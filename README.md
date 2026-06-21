@@ -47,4 +47,4 @@ How can rule-based linguistic methods and transformer-based neural models be dev
 
 ## Current Status
 
-The repository currently contains the initial project structure and writing templates. Subsequent work should focus on literature review, dataset planning, error taxonomy refinement, and implementation of baseline spell-checking methods.
+The repository now includes the initial corpus-processing pipeline for the local `dataset/raw/uz.txt` Uzbek web corpus. Subsequent work should focus on corpus audit, dataset statistics, spelling-error generation design, error taxonomy refinement, and implementation of baseline spell-checking methods.
