@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
+REPO_ROOT = Path(__file__).resolve().parents[2]
 WORD_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿĀ-žА-Яа-яЁёЎўҚқҒғҲҳʼ']+", re.UNICODE)
 
 
@@ -20,8 +21,8 @@ WORD_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿĀ-žА-Яа-яЁёЎўҚқҒғҲҳ
 class AnalysisConfig:
     """Configuration for cleaned-corpus statistics."""
 
-    input_path: Path = Path("dataset/processed/clean_sentences.csv")
-    output_path: Path | None = Path("dataset/processed/corpus_statistics.json")
+    input_path: Path = REPO_ROOT / "dataset" / "processed" / "clean_sentences.csv"
+    output_path: Path | None = REPO_ROOT / "dataset" / "processed" / "corpus_statistics.json"
     top_k: int = 50
 
 
