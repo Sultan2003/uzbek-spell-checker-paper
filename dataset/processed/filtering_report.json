@@ -1,0 +1,15 @@
+{
+  "status": "pending_full_corpus_run",
+  "note": "This report path is produced by experiments/data_preparation/process_uz_corpus.py. Run the processor on dataset/raw/uz.txt to populate full-corpus counts.",
+  "input_path": "dataset/raw/uz.txt",
+  "output_path": "dataset/processed/clean_sentences.csv",
+  "thresholds": {
+    "min_chars": 25,
+    "max_chars": 500,
+    "min_words": 4,
+    "max_non_letter_ratio": 0.35,
+    "max_digits_ratio": 0.15,
+    "max_separator_count": 2
+  },
+  "counts": {}
+}
