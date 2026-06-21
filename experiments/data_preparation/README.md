@@ -20,13 +20,15 @@ Do not rename it unless you also pass `--input` to the processing script. Do not
 
 ## 2. Process the corpus
 
-Run the streaming processor:
+Run the streaming processor from the repository root or any subdirectory:
 
 ```bash
 python experiments/data_preparation/process_uz_corpus.py
 ```
 
-By default, the processor reads `dataset/raw/uz.txt` and writes:
+If you are in another directory, use the appropriate path to the script; default input and output paths are still resolved from the repository root automatically.
+
+By default, the processor resolves paths relative to the repository root, reads `<repo>/dataset/raw/uz.txt`, and writes:
 
 ```text
 dataset/processed/clean_sentences.csv
@@ -40,8 +42,8 @@ id,sentence
 
 Useful options:
 
-- `--input`: override the raw corpus path.
-- `--output`: override the cleaned CSV destination.
+- `--input`: override the raw corpus path; relative override paths are interpreted relative to your current working directory.
+- `--output`: override the cleaned CSV destination; relative override paths are interpreted relative to your current working directory.
 - `--min-chars`: minimum sentence length in characters.
 - `--max-chars`: maximum sentence length in characters.
 - `--min-words`: minimum number of word tokens.
@@ -53,13 +55,15 @@ The processor streams the file line by line, normalizes apostrophe variants, rem
 
 ## 3. Analyze the cleaned corpus
 
-After processing, run:
+After processing, run from the repository root or any subdirectory:
 
 ```bash
 python experiments/data_preparation/analyze_corpus.py
 ```
 
-By default, the analyzer reads `dataset/processed/clean_sentences.csv` and writes:
+If you are in another directory, use the appropriate path to the script; default input and output paths are still resolved from the repository root automatically.
+
+By default, the analyzer resolves paths relative to the repository root, reads `<repo>/dataset/processed/clean_sentences.csv`, and writes:
 
 ```text
 dataset/processed/corpus_statistics.json

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Iterator
 
 LOGGER = logging.getLogger(__name__)
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 URL_RE = re.compile(r"(?:https?://|ftp://|www\.)\S+", re.IGNORECASE)
 EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
@@ -66,8 +67,8 @@ REPEATED_PUNCT_RE = re.compile(r"([!?.\-|_=*#])\1{3,}")
 class CorpusProcessingConfig:
     """Configuration for streaming Uzbek corpus processing."""
 
-    input_path: Path = Path("dataset/raw/uz.txt")
-    output_path: Path = Path("dataset/processed/clean_sentences.csv")
+    input_path: Path = REPO_ROOT / "dataset" / "raw" / "uz.txt"
+    output_path: Path = REPO_ROOT / "dataset" / "processed" / "clean_sentences.csv"
     min_chars: int = 25
     max_chars: int = 500
     min_words: int = 4
