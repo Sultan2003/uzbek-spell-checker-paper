@@ -28,6 +28,10 @@ LEADING_NUMERIC_RE = re.compile(r"^\d+\s+")
 FLOATING_SCORE_RE = re.compile(r"(?:^|\s)\d+\.\d{2,6}(?:\s|$)")
 RANKING_ENTRY_RE = re.compile(r"^(?:№|#)?\s*\d{1,4}[.):-]?\s+\S+")
 ENCODING_CORRUPTION_RE = re.compile(r"(?:�|Ã.|Ð.|Ñ.|â[€™€œ€“]|\?\?+)")
+MOJIBAKE_MARKER_RE = re.compile(
+    r"(?:вЂ|в€|В«|В»|В·|Вў|Р[µѕ•]|Р[А-Яа-яЁёA-Za-z]|С[А-Яа-яЁёA-Za-z]|Ð.|Ñ.|â[€™€œ€“]|Ã.|�)"
+)
+MOJIBAKE_STRONG_MARKER_RE = re.compile(r"(?:вЂ|В«|В»|вЂ—|вЂќ|вЂњ|вЂ™|вЂ“|вЂ”|�)")
 EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
 TAG_RE = re.compile(r"<[^>]+>")
 HTML_ENTITY_RE = re.compile(r"&(?:[a-zA-Z][a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+);")
@@ -69,6 +73,17 @@ NAVIGATION_TERMS = {
 DIRECTORY_RE = re.compile(r"^(?:[\w .'-]+\s*[|/›>•·-]\s*){2,}[\w .'-]+$", re.UNICODE)
 PATHLIKE_RE = re.compile(r"^(?:[A-Za-z0-9_.-]+/){2,}[A-Za-z0-9_.-]*/?$")
 REPEATED_PUNCT_RE = re.compile(r"([!?.\-|_=*#])\1{3,}")
+
+SONG_PAGE_RE = re.compile(r"(?:qo['’ʻ`]shiq\s+matni|lyrics|текст\s+песни)", re.IGNORECASE)
+DIRECTORY_KEYWORD_RE = re.compile(
+    r"(?:\bmanzil\s*:|\btelefon\b|\bkontakt\b|\bkatalog\b|yellow\s+pages|\baddress\s*:|\bphone\s*:)",
+    re.IGNORECASE,
+)
+BOILERPLATE_RE = re.compile(
+    r"(?:foydalanish\s+shartlari|copyright|privacy\s+policy|all\s+rights\s+reserved|barcha\s+huquqlar\s+himoyalangan|cookie\s+policy)",
+    re.IGNORECASE,
+)
+TITLE_SEGMENT_WORDS_RE = re.compile(r"^[\wÀ-ÖØ-öø-ÿĀ-žА-Яа-яЁёЎўҚқҒғҲҳ'’ʻ` -]{2,90}$", re.UNICODE)
 
 
 @dataclass(frozen=True)
@@ -130,6 +145,41 @@ def normalize_text(text: str) -> str:
     return WHITESPACE_RE.sub(" ", text).strip()
 
 
+def mojibake_score(text: str) -> int:
+    """Count visible mojibake markers left in text."""
+
+    return len(MOJIBAKE_MARKER_RE.findall(text)) + text.count("�") * 2
+
+
+def repair_mojibake(text: str) -> tuple[str, bool]:
+    """Repair common UTF-8-as-Cyrillic/Latin-1 mojibake when it is unambiguous.
+
+    Uzbek web pages in the source crawl sometimes contain UTF-8 punctuation or
+    Cyrillic decoded with the wrong single-byte codec, yielding artifacts such
+    as ``вЂњ``, ``YUNР•SKO``, or ``GalilРµy``.  Try conservative round-trips and
+    accept a repair only when the marker count decreases.
+    """
+
+    original_score = mojibake_score(text)
+    if original_score == 0:
+        return text, False
+
+    candidates: list[str] = []
+    for codec in ("cp1251", "latin1", "cp1252"):
+        try:
+            candidates.append(text.encode(codec).decode("utf-8"))
+        except UnicodeError:
+            continue
+
+    if not candidates:
+        return text, False
+
+    best = min(candidates, key=lambda candidate: (mojibake_score(candidate), abs(len(candidate) - len(text))))
+    if mojibake_score(best) < original_score:
+        return WHITESPACE_RE.sub(" ", best).strip(), True
+    return text, False
+
+
 def split_sentences(line: str) -> Iterator[str]:
     """Yield conservative sentence candidates from one normalized line."""
 
@@ -155,14 +205,36 @@ def looks_like_metadata(text: str) -> bool:
 
 
 def looks_like_directory_entry(text: str) -> bool:
-    """Return True for breadcrumb, menu, or directory-style rows."""
+    """Return True for breadcrumb, menu, catalog, or contact-directory rows."""
 
+    if DIRECTORY_KEYWORD_RE.search(text):
+        return True
     if PATHLIKE_RE.match(text):
         return True
     if DIRECTORY_RE.match(text) and len(WORD_RE.findall(text)) <= 10:
         return True
     separators = sum(text.count(sep) for sep in ("|", "/", "›", "•", "·"))
     return separators > 2 and len(text) < 120
+
+
+def looks_like_title_aggregation(text: str) -> bool:
+    """Return True when several headline/title snippets are merged by commas."""
+
+    comma_count = text.count(",")
+    if comma_count < 4:
+        return False
+    segments = [segment.strip(" -–—…") for segment in text.split(",") if segment.strip(" -–—…")]
+    if len(segments) < 5:
+        return False
+    short_title_like = 0
+    terminal_sentence_segments = 0
+    for segment in segments:
+        words = WORD_RE.findall(segment)
+        if 1 <= len(words) <= 10 and TITLE_SEGMENT_WORDS_RE.match(segment):
+            short_title_like += 1
+        if segment.endswith((".", "!", "?")):
+            terminal_sentence_segments += 1
+    return short_title_like >= 5 and terminal_sentence_segments <= 1
 
 
 def filtering_reason(text: str, config: CorpusProcessingConfig) -> str | None:
@@ -174,12 +246,18 @@ def filtering_reason(text: str, config: CorpusProcessingConfig) -> str | None:
         return "too_long"
     if URL_RE.search(text) or EMAIL_RE.search(text):
         return "url_or_email"
-    if ENCODING_CORRUPTION_RE.search(text):
-        return "encoding_corruption"
+    if mojibake_score(text) >= 2 or MOJIBAKE_STRONG_MARKER_RE.search(text) or ENCODING_CORRUPTION_RE.search(text):
+        return "mojibake_removed"
+    if SONG_PAGE_RE.search(text):
+        return "song_page_removed"
+    if BOILERPLATE_RE.search(text):
+        return "boilerplate_removed"
+    if looks_like_title_aggregation(text):
+        return "title_aggregation_removed"
     if looks_like_metadata(text):
         return "metadata_or_ranking"
     if looks_like_directory_entry(text):
-        return "directory_or_navigation"
+        return "directory_removed"
     if REPEATED_PUNCT_RE.search(text):
         return "repeated_punctuation"
 
@@ -241,8 +319,16 @@ def process_corpus(config: CorpusProcessingConfig, log_every: int) -> Counter[st
             if not normalized_line:
                 counts["empty_or_artifact_lines"] += 1
                 continue
+            repaired_line, was_repaired = repair_mojibake(normalized_line)
+            if was_repaired:
+                counts["mojibake_repaired"] += 1
+                normalized_line = normalize_text(repaired_line)
             for sentence in split_sentences(normalized_line):
                 counts["sentence_candidates"] += 1
+                repaired_sentence, sentence_repaired = repair_mojibake(sentence)
+                if sentence_repaired:
+                    counts["mojibake_repaired"] += 1
+                    sentence = normalize_text(repaired_sentence)
                 reason = filtering_reason(sentence, config)
                 if reason is not None:
                     counts["low_quality_candidates"] += 1
@@ -272,6 +358,14 @@ def process_corpus(config: CorpusProcessingConfig, log_every: int) -> Counter[st
             "max_separator_count": config.max_separator_count,
         },
         "counts": dict(counts),
+        "new_filter_counts": {
+            "mojibake_removed": counts.get("rejected_mojibake_removed", 0),
+            "directory_removed": counts.get("rejected_directory_removed", 0),
+            "song_page_removed": counts.get("rejected_song_page_removed", 0),
+            "title_aggregation_removed": counts.get("rejected_title_aggregation_removed", 0),
+            "boilerplate_removed": counts.get("rejected_boilerplate_removed", 0),
+            "mojibake_repaired": counts.get("mojibake_repaired", 0),
+        },
     }
     config.report_path.parent.mkdir(parents=True, exist_ok=True)
     config.report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
